@@ -37,39 +37,169 @@
 
             });
 
-            google.maps.event.addListener(map, 'click', function(e) {
-                alert("POS: "+ e.latLng.lat()+" , "+ e.latLng.lng());
-            });
+{#            google.maps.event.addListener(map, 'click', function(e) {#}
+{#                alert("POS: "+ e.latLng.lat()+" , "+ e.latLng.lng());#}
+{#            });#}
 
             types = {
-                {% for t in types %}"{{ t.id }}": {"name": "{{ t.name }}", "image": "{{ t.image }}"} {% if not forloop.last %},{% endif %}{% endfor %}
+                {% for t in types %}"{{ t.id }}": {"visible": true, "name": "{{ t.name }}", "image": "{{ t.image }}"} {% if not forloop.last %},{% endif %}{% endfor %}
             };
 
             companies = [
-                {% for c in companies %}{"id": "{{ c.id }}", "name": "{{ c.companyname }}", "type": "{{ c.type.id }}", "lat": {{ c.lat|stringformat:"f" }}, "lng": {{ c.lng|stringformat:"f" }} } {% if not forloop.last %},{% endif %}
+                {% for c in companies %}{"id": "{{ c.id }}","twitter":"{{ c.twitter }}", "email":"{{ c.email }}", "description":"{{ c.description }}", "sector":"{{ c.sector.name }}", "companyname": "{{ c.companyname }}", "type": "{{ c.type.id }}", "typename":"{{ c.type.name }}", "website":"{{ c.website }}", "lat": {{ c.lat|stringformat:"f" }}, "lng": {{ c.lng|stringformat:"f" }} } {% if not forloop.last %},{% endif %}
                 {% endfor %}
             ];
 
+            companyDescription = function(c) {
+                return "<h5>"+ c.companyname+"</h5>" +
+                        ((c.website)?"<a href='"+ c.website+"'>"+ c.website+"</a><br/>":"") +
+                        "<i>"+ c.sector+"</i><hr/>" +
+                        "<span class='smaller'>"+ c.description +"<br/>" +
+                        "<b>Email</b>: <a href='mailto:"+ c.email+"'>" + c.email +"</a><br/>" +
+                        ((c.twitter)?"<b>Twitter</b>: <a href='http://twitter.com/"+ c.twitter+"'>@"+ c.twitter +"</a><br/>":"")+
+                        "</span>";
+            };
+
+            infowindow = new google.maps.InfoWindow({
+                content:'<span id="hook">Hello World!</span>',
+                maxWidth: 350
+            });
+
+            $("#adicionarpanel input, #adicionarpanel select, #adicionarpanel textarea").addClass("input-block-level");
+            $("#adicionarpanel textarea").attr("rows","3");
+
+
+            abrirInfoWindow = function() {
+                var company = this.company;
+                infowindow.setContent(companyDescription(company));
+                infowindow.open(map,this);
+            };
 
             showMarkers = function() {
                 for (var i in companies) {
                     var company = companies[i];
+                    var type = types[company.type];
                     var marker = new google.maps.Marker({
                         draggable: false,
                         raiseOnDrag: false,
-                        icon: image1,
+                        icon: imagetypes[company.type],
                         shadow: shadow,
                         shape: shape,
-                        map: map,
+                        map: (type.visible)?map:null,
                         title: company.name,
                         position: new google.maps.LatLng(company.lat, company.lng)
                     });
+                    google.maps.event.addListener(marker, 'click', abrirInfoWindow);
+
+                    company.marker = marker;
+                    marker.company = company;
                 }
             };
             showMarkers();
 
+            hideCategory = function(tid) {
+                for (var i in companies) {
+                    var company = companies[i];
+                    if (company.type==tid) {
+                        var marker = company.marker;
+                        marker.setMap(null);
+                    }
+                }
+            };
+
+            showCategory = function(tid) {
+                for (var i in companies) {
+                    var company = companies[i];
+                    if (company.type==tid) {
+                        var marker = company.marker;
+                        marker.setMap(map);
+                    }
+                }
+            };
+
+            $(".lnktype").each(function(index, value) {
+                var type = types[$(value).attr("tid")];
+                $(value).tooltip({placement:"right", title:"Ocultar "+type.name});
+            });
+
+            clearAllMarkers = function() {
+                for (var i in companies) {
+                    var company = companies[i];
+                    var marker = company.marker;
+                    marker.setMap(null);
+                }
+            };
 
 
+            $(".lnktype").click(function() {
+                var tid = $(this).attr("tid");
+                var type = types[tid];
+                if (type.visible) {
+                    // Hide this category
+                    hideCategory(tid);
+                    type.visible = false;
+                    $(this).find(".visiblemarker").attr("src","/static/img/false.png");
+                    $(this).tooltip('destroy').tooltip({placement:"right", title:"Mostrar "+type.name});
+                } else {
+                    // Show this category
+                    showCategory(tid);
+                    type.visible = true;
+                    $(this).find(".visiblemarker").attr("src","/static/img/true.png");
+                    $(this).tooltip('destroy').tooltip({placement:"right", title:"Ocultar "+type.name});
+                }
+            });
+
+            $(".zonebtn").click(function() {
+                var zid = $(this).attr("zid");
+                $.post("/places", {zid: zid}, function(data) {
+                    if (data.result=='ok') {
+                        map.setCenter(new google.maps.LatLng(data.lat, data.lng));
+                        map.setZoom(13);
+                        clearAllMarkers();
+                        companies = data.companies;
+                        showMarkers();
+                        for (var i in data.types) {
+                            var text = data.types[i];
+                            $("#typedesc"+i).html(text);
+                        }
+                    }
+                }, "json");
+            });
+
+            // Start in last zone
+            $(".zonebtn:first").button('toggle');
+
+            $("#adicionarbtn").click(function() {
+                $("#adicionarpanel").modal("show");
+                return false;
+            });
+
+            $(".btncerrar").click(function() {
+                $("#adicionarpanel").modal("hide");
+                return false;
+            });
+
+            $(".btnadicionar").click(function() {
+                var datos = {};
+                datos['name'] = $("#id_name").val();
+                datos['email'] = $("#id_email").val();
+                datos['companyname'] = $("#id_companyname").val();
+                datos['companytype'] = $("#id_companytype").val();
+                datos['sector'] = $("#id_sector").val();
+                datos['address'] = $("#id_address").val();
+                datos['website'] = $("#id_website").val();
+                datos['description'] = $("#id_description").val();
+                datos['twitter'] = $("#id_twitter").val();
+                datos['zone'] = $("#id_zone").val();
+                $.post("/post",datos, function(data) {
+                    if (data.result=="ok") {
+                        $("#adicionarpanel").modal("hide");
+                    } else {
+                        alert("Error");
+                    }
+                }, "json");
+                return false;
+            });
         });
 
 
@@ -78,15 +208,27 @@
 <body>
 <div class="canvas">
 
+    <div id="zonas">
+        <div class="btn-group" data-toggle="buttons-radio">
+            {% for z in zones %}
+            <button type="button" class="btn zonebtn" zid="{{ z.id }}">{{ z.name }}</button>
+            {% endfor %}
+        </div>
+
+        <a href="#" id="adicionarbtn" class="btn btn-success"><i class="icon-plus icon-white"></i> Adicionar Emprendimiento</a>
+    </div>
+
     <div id="lateral">
 
         <div class="row-fluid" style="margin-bottom: 20px;">
             <span class="span12">
                 {% for type in types %}
-                <a href="#" class='lnktype'><img src="/static/img/{{ type.image }}" alt="{{ type.name }}"/> {{ type.name }} ({{ type.company_set.count }})</a><br/>
+                <a href="#" class='lnktype' tid='{{ type.id }}'><img src='/static/img/true.png' class='visiblemarker'/> <img src="/static/img/{{ type.image }}" alt="{{ type.name }}"/> <span id="typedesc{{ type.id }}">{{ type.name }} ({{ type.count_published }})</span></a><br/>
                 {% endfor %}
             </span>
         </div>
+
+
 
         <div class="row-fluid" style="margin-bottom: 20px;">
             <div class="span12">
@@ -100,5 +242,30 @@
 
     </div>
 </div>
+
+<div class="modal hide fade" id="adicionarpanel">
+    <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+        <h4>Adicionar Emprendimiento</h4>
+    </div>
+    <div class="modal-body">
+        <form id="formulario" class='form-horizontal' action="" method="POST">
+            {% for field in form %}
+                <fieldset class="control-group nomargins" style="margin-bottom: 0;">
+                    <label class="control-label" for="id_{{ field.name }}">{{ field.label }}</label>
+                    <div class="controls">
+                        {{ field }}
+                        <p class="help-text">{{ field.help_text }} </p>
+                    </div>
+                </fieldset>
+            {% endfor %}
+        </form>
+    </div>
+    <div class="modal-footer">
+        <a href="#" class="btn btncerrar">Cerrar</a>
+        <a href="#" class="btn btn-primary btnadicionar">Enviar para Revisi&oacute;n</a>
+    </div>
+</div>
+
 </body>
 </html>

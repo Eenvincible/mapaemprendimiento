@@ -9,7 +9,13 @@ html, body, #map_canvas {
     width: 100%;
     float: left;
 }
-
-#lateral { width: 15%; float: left; position: absolute; right: 0; bottom: 20px; z-index: 1000; }
+a:hover, a:active, a:focus { text-decoration: none; outline: none; }
+#lateral { width: 20%; float: left; position: absolute; right: 0; bottom: 20px; z-index: 1000; }
 .whitetheme { color: #eee; font-weight: bold; }
 .whitetheme:hover { color: white; }
+h5 { margin: 0; }
+hr { margin: 4px 0; }
+.smaller { font-size: 12px; line-height: 12px; color: #666; }
+#zonas { position: absolute; z-index: 1000; top: 10px; left: 100px; }
+fieldset { margin-bottom: 0; }
+.modal-header { background: green; color: white; }

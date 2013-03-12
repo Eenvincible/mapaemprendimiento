@@ -12,6 +12,9 @@ class CompanyType(models.Model):
         verbose_name = "Tipo de Compannia"
         verbose_name_plural = "Tipos de Compannia"
 
+    def count_published(self, z):
+        return self.company_set.filter(publish=True, zone=z).count()
+
 class Sector(models.Model):
     name = models.CharField(max_length=200)
 
@@ -21,6 +24,19 @@ class Sector(models.Model):
     class Meta:
         verbose_name = "Sector"
         verbose_name_plural = "Sectores"
+
+class Zone(models.Model):
+    name = models.CharField(max_length=200)
+    lat = models.FloatField()
+    lng = models.FloatField()
+
+    def __unicode__(self):
+        return self.name
+
+    class Meta:
+        verbose_name = "Provincia"
+        verbose_name_plural = "Provincias"
+
 
 class Company(models.Model):
     name = models.CharField(max_length=200)
@@ -34,6 +50,11 @@ class Company(models.Model):
     twitter = models.CharField(max_length=200, null=True, blank=True)
     lat = models.FloatField()
     lng = models.FloatField()
+    zone = models.ForeignKey(Zone)
+    publish = models.BooleanField()
+
+    def __unicode__(self):
+        return self.companyname
 
     class Meta:
         verbose_name = "Compannia"
